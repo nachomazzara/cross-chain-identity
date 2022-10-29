@@ -1,4 +1,5 @@
-import Identity from 0xf8d6e0586b0a20c7
+export const setDelegation = `
+import Identity from 0xa63ef4e306e47fb0
 
 // Our transaction object now takes in arguments!
 transaction(
@@ -37,3 +38,4 @@ transaction(
     log("Delegation set!")
   }
 }
+`

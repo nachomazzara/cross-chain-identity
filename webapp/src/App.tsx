@@ -1,19 +1,39 @@
 import React, { useState, useEffect } from 'react'
-import logo from './logo.svg'
+import { useWeb3React } from '@web3-react/core'
+import { Web3Provider } from '@ethersproject/providers'
+import {
+  InjectedConnector,
+  UserRejectedRequestError,
+} from '@web3-react/injected-connector'
 
 // @ts-ignore
 import * as fcl from '@onflow/fcl'
 // @ts-ignore
 import * as types from '@onflow/types'
 
-import { addDelegation as addDelegationScript } from './cadence/transactions/addDelegation'
+import { setDelegation as setDelegationScript } from './cadence/transactions/setDelegation'
 import {
   getDelegations as getDelegationsScript,
   getDelegation as getDelegationScript,
-  getDelegation,
+  geLookupByAddress as geLookupByAddressScript,
 } from './cadence/scripts/getDelegations'
 
 import './App.css'
+
+const CHAINS: { [key: number]: string } = {
+  1: 'EVM: Ethereum, Polygon, Optimism, etc...',
+  2: 'Flow',
+  3: 'BSC',
+  4: 'TRON',
+}
+
+enum CHAINS_MAP {
+  INVALID,
+  EVM,
+  FLOW,
+  BSC,
+  TRON,
+}
 
 fcl.config({
   'flow.network': 'testnet',
@@ -24,11 +44,11 @@ fcl.config({
 })
 
 type User = {
-  addr: String
+  [key in CHAINS_MAP]?: string
 }
 
 type Delegations = {
-  [key: string]: string
+  [key: number]: string
 }
 
 function App() {
@@ -46,27 +66,93 @@ function App() {
   useEffect(() => {
     // This listens to changes in the user objects
     // and updates the connected user
-    fcl.currentUser().subscribe(setUser)
+    fcl
+      .currentUser()
+      .subscribe((flowAccount: { addr: string }) =>
+        setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
+      )
   }, [])
 
   const RenderLogin = () => {
     return (
       <div>
         <button className="cta-button button-glow" onClick={() => logIn()}>
-          Log In
+          Connect to Flow
         </button>
       </div>
     )
   }
 
+  const RenderConnectMetamask = () => {
+    const {
+      chainId,
+      account,
+      activate,
+      deactivate,
+      setError,
+      active,
+      library,
+      connector,
+    } = useWeb3React<Web3Provider>()
+    const injected = new InjectedConnector({
+      supportedChainIds: [1, 3, 4, 5, 10, 42, 31337, 42161],
+    })
+    const onClickConnect = () => {
+      activate(
+        injected,
+        (error) => {
+          if (error instanceof UserRejectedRequestError) {
+            // ignore user rejected error
+            console.log('user refused')
+          } else {
+            setError(error)
+          }
+        },
+        false
+      )
+    }
+
+    const onClickDisconnect = () => {
+      deactivate()
+    }
+
+    useEffect(() => {
+      console.log('a', user, account)
+      if (active && account && (!user || user[CHAINS_MAP.EVM] !== account))
+        setUser({ ...user, [CHAINS_MAP.EVM]: account })
+    }, [user, active])
+
+    return (
+      <div>
+        {active && user && user[CHAINS_MAP.EVM] ? (
+          <div>
+            <button type="button" onClick={onClickDisconnect}>
+              Account: {user[CHAINS_MAP.EVM]}
+            </button>
+            <p>ChainID: {chainId} connected</p>
+          </div>
+        ) : (
+          <div>
+            <button type="button" onClick={onClickConnect}>
+              Connect to EVM
+            </button>
+            <p> not connected </p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const RenderLogout = () => {
-    if (user && user.addr) {
+    if (user && user[CHAINS_MAP.FLOW]) {
       return (
         <div className="logout-container">
           <button className="cta-button logout-btn" onClick={() => logOut()}>
             ❎ {'  '}
-            {user.addr.substring(0, 6)}...
-            {user.addr.substring(user.addr.length - 4)}
+            {user[CHAINS_MAP.FLOW]!.substring(0, 6)}...
+            {user[CHAINS_MAP.FLOW]!.substring(
+              user[CHAINS_MAP.FLOW]!.length - 4
+            )}
           </button>
         </div>
       )
@@ -74,28 +160,27 @@ function App() {
     return null
   }
 
-  const addDelegation = async () => {
-    if (user && user.addr) {
+  const setDelegation = async () => {
+    if (user && user[CHAINS_MAP.FLOW]) {
       try {
         const transactionId = await fcl.mutate({
-          cadence: `${addDelegationScript}`,
+          cadence: `${setDelegationScript}`,
           args: (arg: (...args: any) => any) => [
-            arg(user.addr, types.Address), //address to which the NFT should be minted
-            arg('Ethereum', types.String), // Name
-            arg('0xE4d3bA99FfDAE47c003F1756c01d8e7eE8fEF7C9', types.String), // Description
+            arg(CHAINS_MAP.EVM.toString(), types.UInt8), // Name
+            arg('0xas', types.String), // Description
           ],
           proposer: fcl.currentUser,
           payer: fcl.currentUser,
           limit: 99,
         })
-        console.log('Minting NFT now with transaction ID', transactionId)
+        console.log('Setting delegation', transactionId)
         const transaction = await fcl.tx(transactionId).onceSealed()
         console.log(
           'Testnet explorer link:',
           `https://testnet.flowscan.org/transaction/${transactionId}`
         )
         console.log(transaction)
-        alert('NFT minted successfully!')
+        alert('Delegation set successfully!')
       } catch (error) {
         console.log(error)
         alert('Error minting NFT, please check the console for error details!')
@@ -104,12 +189,12 @@ function App() {
   }
 
   const getDelegations = async () => {
-    if (user && user.addr) {
+    if (user && user[CHAINS_MAP.FLOW]) {
       try {
         const delegationsKeys = await fcl.query({
           cadence: `${getDelegationsScript}`,
           args: (arg: (...args: any) => any) => [
-            arg(user.addr, types.Address), //address to which the NFT should be minted
+            arg(user[CHAINS_MAP.FLOW], types.Address),
           ],
           proposer: fcl.currentUser,
           payer: fcl.currentUser,
@@ -121,15 +206,15 @@ function App() {
           const delegation = await fcl.query({
             cadence: `${getDelegationScript}`,
             args: (arg: (...args: any) => any) => [
-              arg(user.addr, types.Address), //address to which the NFT should be minted
-              arg(delegationsKeys[i], types.String),
+              arg(user[CHAINS_MAP.FLOW], types.Address),
+              arg(delegationsKeys[i].rawValue, types.UInt8),
             ],
             proposer: fcl.currentUser,
             payer: fcl.currentUser,
             limit: 99,
           })
 
-          delegations[delegation.chainName] = delegation.address
+          delegations[delegation.chainId.rawValue] = delegation.address
           const res = await fetch(
             `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
           )
@@ -144,11 +229,64 @@ function App() {
     }
   }
 
+  const getDelegationsByLookup = async () => {
+    if (user && user[CHAINS_MAP.EVM]) {
+      try {
+        const delegationsByLookup = await fcl.query({
+          cadence: `${geLookupByAddressScript}`,
+          args: (arg: (...args: any) => any) => [
+            arg(user[CHAINS_MAP.EVM]?.toString().toLowerCase(), types.String),
+          ],
+          proposer: fcl.currentUser,
+          payer: fcl.currentUser,
+          limit: 99,
+        })
+
+        console.log(delegationsByLookup)
+
+        // const delegationsKeys = await fcl.query({
+        //   cadence: `${getDelegationsScript}`,
+        //   args: (arg: (...args: any) => any) => [
+        //     arg(user[CHAINS_MAP.FLOW], types.Address),
+        //   ],
+        //   proposer: fcl.currentUser,
+        //   payer: fcl.currentUser,
+        //   limit: 99,
+        // })
+
+        // const delegations: Delegations = {}
+        // for (let i = 0; i < delegationsKeys.length; i++) {
+        //   const delegation = await fcl.query({
+        //     cadence: `${getDelegationScript}`,
+        //     args: (arg: (...args: any) => any) => [
+        //       arg(user[CHAINS_MAP.FLOW], types.Address),
+        //       arg(delegationsKeys[i].rawValue, types.UInt8),
+        //     ],
+        //     proposer: fcl.currentUser,
+        //     payer: fcl.currentUser,
+        //     limit: 99,
+        //   })
+
+        //   delegations[delegation.chainId.rawValue] = delegation.address
+        //   const res = await fetch(
+        //     `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
+        //   )
+        //   const data = await res.json()
+        //   console.log(data)
+        // }
+
+        // setDelegations(delegations)
+      } catch (err) {
+        console.log(err)
+      }
+    }
+  }
+
   const RenderAddDelegationButton = () => (
     <div>
       <button
         className="cta-button button-glow"
-        onClick={() => addDelegation()}
+        onClick={() => setDelegation()}
       >
         Add Delegation
       </button>
@@ -158,9 +296,9 @@ function App() {
   const RenderDelegations = () =>
     delegations ? (
       <div className="delegations">
-        {Object.keys(delegations).map((chainName: string, index: number) => (
+        {Object.keys(delegations).map((chainId: string, index: number) => (
           <p key={index}>
-            `{chainName}: {delegations[chainName]}`
+            {CHAINS[Number(chainId)]}: {delegations[Number(chainId)]}
           </p>
         ))}
       </div>
@@ -169,11 +307,22 @@ function App() {
   return (
     <div className="App">
       <RenderLogout />
-      {user && user.addr ? 'Wallet connected!' : <RenderLogin />}
-      {user && user.addr && (
+      {user && user[CHAINS_MAP.FLOW] ? (
+        'Flow Wallet connected!'
+      ) : (
+        <RenderLogin />
+      )}
+
+      <RenderConnectMetamask />
+      {user && user[CHAINS_MAP.FLOW] && (
         <button onClick={getDelegations}>Get Delegations</button>
       )}
-      {user && user.addr && <RenderAddDelegationButton />}
+      {user && user[CHAINS_MAP.EVM] && (
+        <button onClick={getDelegationsByLookup}>
+          Get Delegations by Lookup
+        </button>
+      )}
+      {user && user[CHAINS_MAP.FLOW] && <RenderAddDelegationButton />}
       <RenderDelegations />
     </div>
   )

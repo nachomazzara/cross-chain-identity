@@ -1,6 +1,6 @@
 import Identity from 0xf8d6e0586b0a20c7
 
-pub fun main(acct: Address): [String] {
+pub fun main(acct: Address): [Identity.CHAINS] {
   let publicRef = getAccount(acct).getCapability(Identity.DelegationPublicPath)
             .borrow<&Identity.Delegations{Identity.DelegationsPublic}>()
             ?? panic ("Oof ouch owie this account doesn't have a delegations there")
