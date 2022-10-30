@@ -5,6 +5,7 @@ import {
   InjectedConnector,
   UserRejectedRequestError,
 } from '@web3-react/injected-connector'
+import { WalletConnectConnector } from '@web3-react/walletconnect-connector'
 
 // @ts-ignore
 import * as fcl from '@onflow/fcl'
@@ -27,6 +28,15 @@ const CHAINS: { [key: number]: string } = {
   4: 'TRON',
 }
 
+const walletConnect = new WalletConnectConnector({
+  bridge: 'https://bridge.walletconnect.org',
+  qrcode: true,
+})
+
+const injected = new InjectedConnector({
+  supportedChainIds: [1, 3, 4, 5, 10, 42, 31337, 42161],
+})
+
 enum CHAINS_MAP {
   INVALID,
   EVM,
@@ -37,7 +47,7 @@ enum CHAINS_MAP {
 
 fcl.config({
   'flow.network': 'testnet',
-  'app.detail.title': 'Identity', // Change the title!
+  'app.detail.title': 'Identity',
   'accessNode.api': 'https://rest-testnet.onflow.org',
   'app.detail.icon': 'https://placekitten.com/g/200/200',
   'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
@@ -54,111 +64,6 @@ type Delegations = {
 function App() {
   const [user, setUser] = useState<User>()
   const [delegations, setDelegations] = useState<Delegations>()
-
-  const logIn = () => {
-    fcl.authenticate()
-  }
-
-  const logOut = () => {
-    fcl.unauthenticate()
-  }
-
-  useEffect(() => {
-    // This listens to changes in the user objects
-    // and updates the connected user
-    fcl
-      .currentUser()
-      .subscribe((flowAccount: { addr: string }) =>
-        setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
-      )
-  }, [])
-
-  const RenderLogin = () => {
-    return (
-      <div>
-        <button className="cta-button button-glow" onClick={() => logIn()}>
-          Connect to Flow
-        </button>
-      </div>
-    )
-  }
-
-  const RenderConnectMetamask = () => {
-    const {
-      chainId,
-      account,
-      activate,
-      deactivate,
-      setError,
-      active,
-      library,
-      connector,
-    } = useWeb3React<Web3Provider>()
-    const injected = new InjectedConnector({
-      supportedChainIds: [1, 3, 4, 5, 10, 42, 31337, 42161],
-    })
-    const onClickConnect = () => {
-      activate(
-        injected,
-        (error) => {
-          if (error instanceof UserRejectedRequestError) {
-            // ignore user rejected error
-            console.log('user refused')
-          } else {
-            setError(error)
-          }
-        },
-        false
-      )
-    }
-
-    const onClickDisconnect = () => {
-      deactivate()
-    }
-
-    useEffect(() => {
-      console.log('a', user, account)
-      if (active && account && (!user || user[CHAINS_MAP.EVM] !== account))
-        setUser({ ...user, [CHAINS_MAP.EVM]: account })
-    }, [user, active])
-
-    return (
-      <div>
-        {active && user && user[CHAINS_MAP.EVM] ? (
-          <div>
-            <button type="button" onClick={onClickDisconnect}>
-              Account: {user[CHAINS_MAP.EVM]}
-            </button>
-            <p>ChainID: {chainId} connected</p>
-          </div>
-        ) : (
-          <div>
-            <button type="button" onClick={onClickConnect}>
-              Connect to EVM
-            </button>
-            <p> not connected </p>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const RenderLogout = () => {
-    if (user && user[CHAINS_MAP.FLOW]) {
-      return (
-        <div className="logout-container">
-          <button className="cta-button logout-btn" onClick={() => logOut()}>
-            ❎ {'  '}
-            {user[CHAINS_MAP.FLOW]!.substring(0, 6)}...
-            {user[CHAINS_MAP.FLOW]!.substring(
-              user[CHAINS_MAP.FLOW]!.length - 4
-            )}
-          </button>
-        </div>
-      )
-    }
-    return null
-  }
 
   const setDelegation = async () => {
     if (user && user[CHAINS_MAP.FLOW]) {
@@ -188,54 +93,50 @@ function App() {
     }
   }
 
-  const getDelegations = async () => {
-    if (user && user[CHAINS_MAP.FLOW]) {
-      try {
-        const delegationsKeys = await fcl.query({
-          cadence: `${getDelegationsScript}`,
+  const fetchFlowDelegations = async (user: string) => {
+    try {
+      const delegationsKeys = await fcl.query({
+        cadence: `${getDelegationsScript}`,
+        args: (arg: (...args: any) => any) => [arg(user, types.Address)],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        limit: 99,
+      })
+
+      const delegations: Delegations = {}
+      for (let i = 0; i < delegationsKeys.length; i++) {
+        const delegation = await fcl.query({
+          cadence: `${getDelegationScript}`,
           args: (arg: (...args: any) => any) => [
-            arg(user[CHAINS_MAP.FLOW], types.Address),
+            arg(user, types.Address),
+            arg(delegationsKeys[i].rawValue, types.UInt8),
           ],
           proposer: fcl.currentUser,
           payer: fcl.currentUser,
           limit: 99,
         })
 
-        const delegations: Delegations = {}
-        for (let i = 0; i < delegationsKeys.length; i++) {
-          const delegation = await fcl.query({
-            cadence: `${getDelegationScript}`,
-            args: (arg: (...args: any) => any) => [
-              arg(user[CHAINS_MAP.FLOW], types.Address),
-              arg(delegationsKeys[i].rawValue, types.UInt8),
-            ],
-            proposer: fcl.currentUser,
-            payer: fcl.currentUser,
-            limit: 99,
-          })
-
-          delegations[delegation.chainId.rawValue] = delegation.address
-          const res = await fetch(
-            `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
-          )
-          const data = await res.json()
-          console.log(data)
-        }
-
-        setDelegations(delegations)
-      } catch (err) {
-        console.log(err)
+        delegations[delegation.chainId.rawValue] = delegation.address
+        const res = await fetch(
+          `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
+        )
+        const data = await res.json()
+        console.log(data)
       }
+
+      setDelegations(delegations)
+    } catch (err) {
+      console.log(err)
     }
   }
 
-  const getDelegationsByLookup = async () => {
+  const fetchDelegationsByLookup = async (user: string) => {
     if (user && user[CHAINS_MAP.EVM]) {
       try {
         const delegationsByLookup = await fcl.query({
           cadence: `${geLookupByAddressScript}`,
           args: (arg: (...args: any) => any) => [
-            arg(user[CHAINS_MAP.EVM]?.toString().toLowerCase(), types.String),
+            arg(user.toLowerCase(), types.String),
           ],
           proposer: fcl.currentUser,
           payer: fcl.currentUser,
@@ -293,37 +194,140 @@ function App() {
     </div>
   )
 
-  const RenderDelegations = () =>
-    delegations ? (
-      <div className="delegations">
-        {Object.keys(delegations).map((chainId: string, index: number) => (
-          <p key={index}>
-            {CHAINS[Number(chainId)]}: {delegations[Number(chainId)]}
-          </p>
-        ))}
+  const FlowConnector = () => {
+    useEffect(() => {
+      fcl.currentUser().subscribe((flowAccount: { addr: string }) => {
+        setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
+        if (
+          flowAccount.addr &&
+          (!user || user[CHAINS_MAP.FLOW] !== flowAccount.addr)
+        ) {
+          fetchFlowDelegations(flowAccount.addr)
+        }
+      })
+    })
+
+    return (
+      <div className="connector">
+        <p className="title">FLOW</p>
+        {!user ||
+          (!user[CHAINS_MAP.FLOW] && (
+            <button
+              className="cta-button button-glow"
+              onClick={fcl.authenticate}
+            >
+              Connect
+            </button>
+          ))}
+        {user && user[CHAINS_MAP.FLOW] && (
+          <div>
+            <div className="logout-container">
+              <button
+                className="cta-button logout-btn"
+                onClick={fcl.unauthenticate}
+              >
+                ❎ {'  '}
+                {user[CHAINS_MAP.FLOW]!.substring(0, 6)}...
+                {user[CHAINS_MAP.FLOW]!.substring(
+                  user[CHAINS_MAP.FLOW]!.length - 4
+                )}
+              </button>
+            </div>
+            {user && user[CHAINS_MAP.FLOW] && <RenderAddDelegationButton />}
+            {delegations && (
+              <div className="delegations">
+                {Object.keys(delegations).map(
+                  (chainId: string, index: number) => (
+                    <p key={index}>
+                      {CHAINS[Number(chainId)]}: {delegations[Number(chainId)]}
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-    ) : null
+    )
+  }
+
+  const EVMConnector = () => {
+    const { chainId, account, activate, deactivate, setError, active } =
+      useWeb3React<Web3Provider>()
+
+    useEffect(() => {
+      if (active && account && (!user || user[CHAINS_MAP.EVM] !== account)) {
+        setUser({ ...user, [CHAINS_MAP.EVM]: account })
+        fetchDelegationsByLookup(account)
+      }
+    }, [account, active])
+
+    const onConnectWithMetamask = () => {
+      activate(
+        injected,
+        (error) => {
+          if (error instanceof UserRejectedRequestError) {
+            // ignore user rejected error
+            console.log('user refused')
+          } else {
+            setError(error)
+          }
+        },
+        false
+      )
+    }
+
+    const onConnectWithWalletConnect = () => {
+      activate(
+        walletConnect,
+        (error) => {
+          if (error instanceof UserRejectedRequestError) {
+            // ignore user rejected error
+            console.log('user refused')
+          } else {
+            setError(error)
+          }
+        },
+        false
+      )
+    }
+
+    return (
+      <div className="connector">
+        <p className="title">EVM</p>
+        {active && user && user[CHAINS_MAP.EVM] ? (
+          <div>
+            <button type="button" onClick={deactivate}>
+              Account: {user[CHAINS_MAP.EVM]}
+            </button>
+            <p>ChainID: {chainId} connected</p>
+          </div>
+        ) : (
+          <div>
+            <button type="button" onClick={onConnectWithMetamask}>
+              Connect with Metamask
+            </button>
+            <button onClick={onConnectWithWalletConnect}>
+              Connect with WalletConnect
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const chainConnections: { [key: number]: JSX.Element } = {
+    [CHAINS_MAP.EVM]: <EVMConnector />,
+    [CHAINS_MAP.FLOW]: <FlowConnector />,
+  }
 
   return (
     <div className="App">
-      <RenderLogout />
-      {user && user[CHAINS_MAP.FLOW] ? (
-        'Flow Wallet connected!'
-      ) : (
-        <RenderLogin />
-      )}
-
-      <RenderConnectMetamask />
-      {user && user[CHAINS_MAP.FLOW] && (
-        <button onClick={getDelegations}>Get Delegations</button>
-      )}
-      {user && user[CHAINS_MAP.EVM] && (
-        <button onClick={getDelegationsByLookup}>
-          Get Delegations by Lookup
-        </button>
-      )}
-      {user && user[CHAINS_MAP.FLOW] && <RenderAddDelegationButton />}
-      <RenderDelegations />
+      {Object.keys(chainConnections).map((key) => (
+        <div key={key} className="connector-wrapper">
+          {chainConnections[Number(key)]}
+        </div>
+      ))}
     </div>
   )
 }
