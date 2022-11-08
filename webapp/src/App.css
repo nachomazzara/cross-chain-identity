@@ -3,15 +3,31 @@
   margin: 20px;
 }
 
+.connectors {
+  display: flex;
+  align-content: space-between;
+  flex-direction: row;
+  width: 100%;
+  align-items: center;
+}
+
 .connector-wrapper {
-  width: 250px;
+  width: 380px;
+  height: 180px;
+  border: 1px solid;
+  border-radius: 3px;
+  margin-bottom: 20px;
+  flex:1;
 }
 
 .connector {
   display: flex;
   align-items: center;
-  border: 1px solid grey;
   padding: 20px;
   justify-content: center;
   flex-direction: column;
+}
+
+.connector p {
+  font-size: 14px;
 }
