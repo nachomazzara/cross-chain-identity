@@ -18,15 +18,23 @@ type User = {
 }
 
 function App() {
-  const [user, setUser] = useState<User>()
+  const [user, setUser] = useState<User>({})
+  const [loading, setLoading] = useState(false)
 
   const chainConnections: { [key: number]: JSX.Element } = {
-    [CHAINS_MAP.EVM]: <EVMConnector setUser={setUser} user={user} />,
-    [CHAINS_MAP.FLOW]: <FlowConnector setUser={setUser} user={user} />,
+    [CHAINS_MAP.EVM]: (
+      <EVMConnector setUser={setUser} user={user} setLoading={setLoading} />
+    ),
+    [CHAINS_MAP.FLOW]: (
+      <FlowConnector setUser={setUser} user={user} setLoading={setLoading} />
+    ),
   }
 
   return (
     <div className="App">
+      <div className={loading ? 'loader-container' : 'hide'}>
+        <div className="spinner" />
+      </div>
       <div className="connectors">
         {Object.keys(chainConnections).map((key) => (
           <div key={key} className="connector-wrapper">
@@ -36,7 +44,7 @@ function App() {
       </div>
       <div className="nfts">
         <div>NFTs</div>
-      </div>
+      </div>{' '}
     </div>
   )
 }

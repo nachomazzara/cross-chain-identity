@@ -5,6 +5,8 @@ import * as fcl from '@onflow/fcl'
 // @ts-ignore
 import * as types from '@onflow/types'
 
+import SetDelegation from './SetDelegation'
+
 import { setDelegation as setDelegationScript } from '../cadence/transactions/setDelegation'
 import {
   getDelegations as getDelegationsScript,
@@ -39,22 +41,69 @@ type Delegations = {
   [key: number]: string
 }
 
-const FlowConnector = ({ setUser, user }: any) => {
+const FlowConnector = ({ setUser, user, setLoading }: any) => {
+  const [delegations, setDelegations] = useState<Delegations>()
+
+  console.log(delegations)
+
+  const fetchFlowDelegations = useCallback(
+    async (user: string) => {
+      setLoading(true)
+      try {
+        const delegationsKeys = await fcl.query({
+          cadence: `${getDelegationsScript}`,
+          args: (arg: (...args: any) => any) => [arg(user, types.Address)],
+          proposer: fcl.currentUser,
+          payer: fcl.currentUser,
+          limit: 99,
+        })
+
+        const delegations: Delegations = {}
+        for (let i = 0; i < delegationsKeys.length; i++) {
+          const delegation = await fcl.query({
+            cadence: `${getDelegationScript}`,
+            args: (arg: (...args: any) => any) => [
+              arg(user, types.Address),
+              arg(delegationsKeys[i].rawValue, types.UInt8),
+            ],
+            proposer: fcl.currentUser,
+            payer: fcl.currentUser,
+            limit: 99,
+          })
+
+          delegations[delegation.chainId.rawValue] = delegation.address
+          const res = await fetch(
+            `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
+          )
+          const data = await res.json()
+          console.log(data)
+        }
+
+        setDelegations(delegations)
+      } catch (err) {
+        console.log(err)
+      }
+      setLoading(false)
+    },
+    [setLoading, setDelegations]
+  )
+
   const subscribeConnection = useCallback(() => {
+    console.log('b')
     fcl.currentUser().subscribe((flowAccount: { addr: string }) => {
-      setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
       if (
         flowAccount.addr &&
         (!user || user[CHAINS_MAP.FLOW] !== flowAccount.addr)
       ) {
+        setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
         fetchFlowDelegations(flowAccount.addr)
       }
     })
-  }, [setUser, user])
+  }, [setUser, user, fetchFlowDelegations])
 
   useEffect(() => {
     subscribeConnection()
-  }, [subscribeConnection])
+  })
 
   const fetchLookupDelegations = useCallback(async () => {
     if (user && user[CHAINS_MAP.EVM] && user[CHAINS_MAP.FLOW]) {
@@ -114,27 +163,15 @@ const FlowConnector = ({ setUser, user }: any) => {
     fetchLookupDelegations()
   }, [fetchLookupDelegations])
 
-  const RenderAddDelegationButton = () => (
-    <div>
-      <button
-        className="cta-button button-glow"
-        onClick={() => setDelegation()}
-      >
-        Add Delegation
-      </button>
-    </div>
-  )
-
-  const [delegations, setDelegations] = useState<Delegations>()
-
-  const setDelegation = async () => {
+  const onSetDelegation = async (chain: number, address: string) => {
     if (user && user[CHAINS_MAP.FLOW]) {
+      setLoading(true)
       try {
         const transactionId = await fcl.mutate({
           cadence: `${setDelegationScript}`,
           args: (arg: (...args: any) => any) => [
-            arg(CHAINS_MAP.EVM.toString(), types.UInt8), // Name
-            arg('0xas', types.String), // Description
+            arg(chain.toString(), types.UInt8),
+            arg(address, types.String),
           ],
           proposer: fcl.currentUser,
           payer: fcl.currentUser,
@@ -147,48 +184,13 @@ const FlowConnector = ({ setUser, user }: any) => {
           `https://testnet.flowscan.org/transaction/${transactionId}`
         )
         console.log(transaction)
+        fetchFlowDelegations(user[CHAINS_MAP.FLOW])
         alert('Delegation set successfully!')
       } catch (error) {
         console.log(error)
         alert('Error minting NFT, please check the console for error details!')
       }
-    }
-  }
-
-  const fetchFlowDelegations = async (user: string) => {
-    try {
-      const delegationsKeys = await fcl.query({
-        cadence: `${getDelegationsScript}`,
-        args: (arg: (...args: any) => any) => [arg(user, types.Address)],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        limit: 99,
-      })
-
-      const delegations: Delegations = {}
-      for (let i = 0; i < delegationsKeys.length; i++) {
-        const delegation = await fcl.query({
-          cadence: `${getDelegationScript}`,
-          args: (arg: (...args: any) => any) => [
-            arg(user, types.Address),
-            arg(delegationsKeys[i].rawValue, types.UInt8),
-          ],
-          proposer: fcl.currentUser,
-          payer: fcl.currentUser,
-          limit: 99,
-        })
-
-        delegations[delegation.chainId.rawValue] = delegation.address
-        const res = await fetch(
-          `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
-        )
-        const data = await res.json()
-        console.log(data)
-      }
-
-      setDelegations(delegations)
-    } catch (err) {
-      console.log(err)
+      setLoading(false)
     }
   }
 
@@ -215,7 +217,9 @@ const FlowConnector = ({ setUser, user }: any) => {
               )}
             </button>
           </div>
-          {user && user[CHAINS_MAP.FLOW] && <RenderAddDelegationButton />}
+          {user && user[CHAINS_MAP.FLOW] && (
+            <SetDelegation onSetDelegation={onSetDelegation} />
+          )}
           {delegations && (
             <div className="delegations">
               {Object.keys(delegations).map(
