@@ -19,6 +19,7 @@ type User = {
 
 function App() {
   const [user, setUser] = useState<User>({})
+  const [images, setImages] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
   const chainConnections: { [key: number]: JSX.Element } = {
@@ -26,7 +27,12 @@ function App() {
       <EVMConnector setUser={setUser} user={user} setLoading={setLoading} />
     ),
     [CHAINS_MAP.FLOW]: (
-      <FlowConnector setUser={setUser} user={user} setLoading={setLoading} />
+      <FlowConnector
+        setUser={setUser}
+        user={user}
+        setLoading={setLoading}
+        setImages={setImages}
+      />
     ),
   }
 
@@ -44,6 +50,11 @@ function App() {
       </div>
       <div className="nfts">
         <div>NFTs</div>
+        <>
+          {images.map((image: string, index: number) => (
+            <img src={image} key={index} />
+          ))}
+        </>
       </div>{' '}
     </div>
   )

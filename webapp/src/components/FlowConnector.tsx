@@ -6,6 +6,7 @@ import * as fcl from '@onflow/fcl'
 import * as types from '@onflow/types'
 
 import SetDelegation from './SetDelegation'
+import { CHAINS, CHAINS_MAP, Delegations } from '../utils'
 
 import { setDelegation as setDelegationScript } from '../cadence/transactions/setDelegation'
 import {
@@ -22,31 +23,11 @@ fcl.config({
   'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
 })
 
-const CHAINS: { [key: number]: string } = {
-  1: 'EVM: Ethereum, Polygon, Optimism, etc...',
-  2: 'Flow',
-  3: 'BSC',
-  4: 'TRON',
-}
-
-enum CHAINS_MAP {
-  INVALID,
-  EVM,
-  FLOW,
-  BSC,
-  TRON,
-}
-
-type Delegations = {
-  [key: number]: string
-}
-
-const FlowConnector = ({ setUser, user, setLoading }: any) => {
+const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
   const [delegations, setDelegations] = useState<Delegations>()
+  const [lookupDelegations, setLookupDelegations] = useState<string[]>()
 
-  console.log(delegations)
-
-  const fetchFlowDelegations = useCallback(
+  const fetchDelegations = useCallback(
     async (user: string) => {
       setLoading(true)
       try {
@@ -72,11 +53,17 @@ const FlowConnector = ({ setUser, user, setLoading }: any) => {
           })
 
           delegations[delegation.chainId.rawValue] = delegation.address
+          // store every lookup Delegation
           const res = await fetch(
             `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
           )
+          const imagesToBeAdded: string[] = []
           const data = await res.json()
-          console.log(data)
+          data.assets.forEach((d: any) => {
+            imagesToBeAdded.push(d.image_thumbnail_url)
+          })
+
+          setImages(imagesToBeAdded)
         }
 
         setDelegations(delegations)
@@ -85,83 +72,54 @@ const FlowConnector = ({ setUser, user, setLoading }: any) => {
       }
       setLoading(false)
     },
-    [setLoading, setDelegations]
+    [setLoading, setDelegations, setImages]
   )
 
   const subscribeConnection = useCallback(() => {
-    console.log('b')
     fcl.currentUser().subscribe((flowAccount: { addr: string }) => {
       if (
         flowAccount.addr &&
         (!user || user[CHAINS_MAP.FLOW] !== flowAccount.addr)
       ) {
         setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
-        fetchFlowDelegations(flowAccount.addr)
+        fetchDelegations(flowAccount.addr)
       }
     })
-  }, [setUser, user, fetchFlowDelegations])
+  }, [setUser, user, fetchDelegations])
 
   useEffect(() => {
     subscribeConnection()
   })
 
-  const fetchLookupDelegations = useCallback(async () => {
-    if (user && user[CHAINS_MAP.EVM] && user[CHAINS_MAP.FLOW]) {
-      console.log('asd')
-      try {
-        const delegationsByLookup = await fcl.query({
-          cadence: `${geLookupByAddressScript}`,
-          args: (arg: (...args: any) => any) => [
-            arg(user.toLowerCase(), types.String),
-          ],
-          proposer: fcl.currentUser,
-          payer: fcl.currentUser,
-          limit: 99,
-        })
+  const fetchLookupDelegations = useCallback(async (account: string) => {
+    try {
+      const delegationsByLookup = await fcl.query({
+        cadence: `${geLookupByAddressScript}`,
+        args: (arg: (...args: any) => any) => [
+          arg(account.toLowerCase(), types.String),
+        ],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        limit: 99,
+      })
+      if (delegationsByLookup) {
+        const lookupDelegationsToBeAdded: string[] = []
+        Object.keys(delegationsByLookup).forEach((key: string) =>
+          lookupDelegationsToBeAdded.push(key)
+        )
 
-        console.log(delegationsByLookup)
-
-        // const delegationsKeys = await fcl.query({
-        //   cadence: `${getDelegationsScript}`,
-        //   args: (arg: (...args: any) => any) => [
-        //     arg(user[CHAINS_MAP.FLOW], types.Address),
-        //   ],
-        //   proposer: fcl.currentUser,
-        //   payer: fcl.currentUser,
-        //   limit: 99,
-        // })
-
-        // const delegations: Delegations = {}
-        // for (let i = 0; i < delegationsKeys.length; i++) {
-        //   const delegation = await fcl.query({
-        //     cadence: `${getDelegationScript}`,
-        //     args: (arg: (...args: any) => any) => [
-        //       arg(user[CHAINS_MAP.FLOW], types.Address),
-        //       arg(delegationsKeys[i].rawValue, types.UInt8),
-        //     ],
-        //     proposer: fcl.currentUser,
-        //     payer: fcl.currentUser,
-        //     limit: 99,
-        //   })
-
-        //   delegations[delegation.chainId.rawValue] = delegation.address
-        //   const res = await fetch(
-        //     `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
-        //   )
-        //   const data = await res.json()
-        //   console.log(data)
-        // }
-
-        // setDelegations(delegations)
-      } catch (err) {
-        console.log(err)
+        setLookupDelegations(lookupDelegationsToBeAdded)
       }
+    } catch (err) {
+      console.log(err)
     }
-  }, [user])
+  }, [])
 
   useEffect(() => {
-    fetchLookupDelegations()
-  }, [fetchLookupDelegations])
+    if (user && user[CHAINS_MAP.EVM]) {
+      fetchLookupDelegations(user[CHAINS_MAP.EVM])
+    }
+  }, [user, fetchLookupDelegations])
 
   const onSetDelegation = async (chain: number, address: string) => {
     if (user && user[CHAINS_MAP.FLOW]) {
@@ -184,7 +142,7 @@ const FlowConnector = ({ setUser, user, setLoading }: any) => {
           `https://testnet.flowscan.org/transaction/${transactionId}`
         )
         console.log(transaction)
-        fetchFlowDelegations(user[CHAINS_MAP.FLOW])
+        fetchDelegations(user[CHAINS_MAP.FLOW])
         alert('Delegation set successfully!')
       } catch (error) {
         console.log(error)
@@ -211,10 +169,7 @@ const FlowConnector = ({ setUser, user, setLoading }: any) => {
               onClick={fcl.unauthenticate}
             >
               ❎ {'  '}
-              {user[CHAINS_MAP.FLOW]!.substring(0, 6)}...
-              {user[CHAINS_MAP.FLOW]!.substring(
-                user[CHAINS_MAP.FLOW]!.length - 4
-              )}
+              {user[CHAINS_MAP.FLOW]}
             </button>
           </div>
           {user && user[CHAINS_MAP.FLOW] && (
@@ -232,6 +187,16 @@ const FlowConnector = ({ setUser, user, setLoading }: any) => {
             </div>
           )}
         </div>
+      )}
+      {lookupDelegations && (
+        <>
+          <p>Lookup Delegations</p>
+          <div className="delegations">
+            {lookupDelegations.map((address: string, index: number) => (
+              <p key={index}>{address}</p>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
