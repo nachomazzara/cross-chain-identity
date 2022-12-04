@@ -1,6 +1,14 @@
 import * as ethers from 'ethers'
 import { Web3Provider } from '@ethersproject/providers'
 
+export enum CHAINS_MAP {
+  INVALID,
+  EVM,
+  FLOW,
+  BSC,
+  TRON,
+}
+
 export const CHAINS: { [key: number]: string } = {
   1: 'EVM: Ethereum, Polygon, Optimism, etc...',
   2: 'Flow',
@@ -8,12 +16,23 @@ export const CHAINS: { [key: number]: string } = {
   4: 'TRON',
 }
 
-export enum CHAINS_MAP {
-  INVALID,
-  EVM,
-  FLOW,
-  BSC,
-  TRON,
+export type User = {
+  [key in CHAINS_MAP]?: string
+}
+
+export type UserLookups = {
+  [key in CHAINS_MAP]?: string[]
+}
+
+export type NFTS = {
+  [key in CHAINS_MAP]?: { [key: string]: NFT }
+}
+
+export type NFT = {
+  id: string
+  name: string
+  thumbnail: string
+  link: string
 }
 
 export type Delegations = {

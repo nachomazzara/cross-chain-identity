@@ -1,5 +1,5 @@
 export const getDelegations = `
-import Identity from 0xa63ef4e306e47fb0
+import Identity from 0x8987ce9a9bc21df4
 
 pub fun main(acct: Address): [Identity.CHAINS] {
   let publicRef = getAccount(acct)
@@ -12,7 +12,7 @@ pub fun main(acct: Address): [Identity.CHAINS] {
 `
 
 export const getDelegation = `
-import Identity from 0xa63ef4e306e47fb0
+import Identity from 0x8987ce9a9bc21df4
 
 pub fun main(acct: Address, chainId: UInt8): &Identity.Delegation? {
   let publicRef = getAccount(acct)
@@ -25,7 +25,7 @@ pub fun main(acct: Address, chainId: UInt8): &Identity.Delegation? {
 `
 
 export const geLookupByAddress = `
-import Identity from 0xa63ef4e306e47fb0
+import Identity from 0x8987ce9a9bc21df4
 
 pub fun main(address: String): {Address: Bool}? {
   return Identity.getLookupsByDelegatedAddress(address: address)

@@ -1,5 +1,5 @@
 export const setDelegation = `
-import Identity from 0xa63ef4e306e47fb0
+import Identity from 0x8987ce9a9bc21df4
 
 // Our transaction object now takes in arguments!
 transaction(

@@ -36,21 +36,24 @@
   }
 }
 
+.app-wrapper {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+
 .connectors {
   display: flex;
   align-content: space-between;
-  flex-direction: row;
+  flex-direction: column;
   width: 100%;
   align-items: center;
 }
 
 .connector-wrapper {
-  width: 380px;
-  height: 180px;
-  border: 1px solid;
-  border-radius: 3px;
+  width: 100%;
+  border-bottom: 1px solid;
   margin-bottom: 20px;
-  flex:1;
 }
 
 .connector {
@@ -63,4 +66,29 @@
 
 .connector p {
   font-size: 14px;
+}
+
+.nfts-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: left;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.nft-wrapper {
+  flex:0 0 20%;
+  margin: 10px 10px;
+}
+
+.nft-wrapper img{
+  width: 100%;
+  border-radius: 10px;
+}
+
+@media only screen and (max-width: 600px) {
+  .nft-wrapper {
+    flex: 0 0 40%;
+  }
 }

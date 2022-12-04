@@ -3,35 +3,37 @@ import React, { useState } from 'react'
 import EVMConnector from './components/EVMConnector'
 import FlowConnector from './components/FlowConnector'
 
+import { CHAINS_MAP, CHAINS, User, UserLookups, NFTS } from './utils'
+
 import './App.css'
-
-enum CHAINS_MAP {
-  INVALID,
-  EVM,
-  FLOW,
-  BSC,
-  TRON,
-}
-
-type User = {
-  [key in CHAINS_MAP]?: string
-}
 
 function App() {
   const [user, setUser] = useState<User>({})
-  const [images, setImages] = useState<string[]>([])
+  const [userLookups, setUserLookups] = useState<UserLookups>({})
+  const [nfts, setNFTs] = useState<NFTS>({})
   const [loading, setLoading] = useState(false)
 
   const chainConnections: { [key: number]: JSX.Element } = {
     [CHAINS_MAP.EVM]: (
-      <EVMConnector setUser={setUser} user={user} setLoading={setLoading} />
+      <EVMConnector
+        user={user}
+        userLookups={userLookups}
+        setUser={setUser}
+        setUserLookups={setUserLookups}
+        setLoading={setLoading}
+        nfts={nfts}
+        setNFTs={setNFTs}
+      />
     ),
     [CHAINS_MAP.FLOW]: (
       <FlowConnector
-        setUser={setUser}
         user={user}
+        userLookups={userLookups}
+        setUser={setUser}
+        setUserLookups={setUserLookups}
         setLoading={setLoading}
-        setImages={setImages}
+        nfts={nfts}
+        setNFTs={setNFTs}
       />
     ),
   }
@@ -41,21 +43,39 @@ function App() {
       <div className={loading ? 'loader-container' : 'hide'}>
         <div className="spinner" />
       </div>
-      <div className="connectors">
-        {Object.keys(chainConnections).map((key) => (
-          <div key={key} className="connector-wrapper">
-            {chainConnections[Number(key)]}
-          </div>
-        ))}
-      </div>
-      <div className="nfts">
-        <div>NFTs</div>
-        <>
-          {images.map((image: string, index: number) => (
-            <img src={image} key={index} />
+      <div className="app-wrapper">
+        <div className="connectors">
+          {Object.keys(chainConnections).map((key) => (
+            <div key={key} className="connector-wrapper">
+              {chainConnections[Number(key)]}
+            </div>
           ))}
-        </>
-      </div>{' '}
+        </div>
+        <div className="nfts">
+          <h2>NFTs</h2>
+          <>
+            {Object.keys(nfts).map((key) => {
+              const chainNFTs = nfts[Number(key) as CHAINS_MAP]
+              return (
+                <div key={key}>
+                  <h3>{CHAINS[Number(key)]}</h3>
+                  <div className="nfts-wrapper">
+                    {chainNFTs &&
+                      Object.keys(chainNFTs).map((id) => (
+                        <div className="nft-wrapper" key={id}>
+                          <img
+                            alt={chainNFTs[id].name}
+                            src={chainNFTs[id].thumbnail}
+                          />
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )
+            })}
+          </>
+        </div>
+      </div>
     </div>
   )
 }

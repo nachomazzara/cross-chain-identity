@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 
 // @ts-ignore
 import * as fcl from '@onflow/fcl'
@@ -6,7 +6,7 @@ import * as fcl from '@onflow/fcl'
 import * as types from '@onflow/types'
 
 import SetDelegation from './SetDelegation'
-import { CHAINS, CHAINS_MAP, Delegations } from '../utils'
+import { CHAINS, CHAINS_MAP, Delegations, NFT } from '../utils'
 
 import { setDelegation as setDelegationScript } from '../cadence/transactions/setDelegation'
 import {
@@ -15,17 +15,35 @@ import {
   geLookupByAddress as geLookupByAddressScript,
 } from '../cadence/scripts/getDelegations'
 
-fcl.config({
-  'flow.network': 'testnet',
-  'app.detail.title': 'Identity',
-  'accessNode.api': 'https://rest-testnet.onflow.org',
-  'app.detail.icon': 'https://placekitten.com/g/200/200',
-  'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
-})
+if (window.location.pathname === '/testnet') {
+  fcl.config({
+    'flow.network': 'testnet',
+    'app.detail.title': 'Identity',
+    'accessNode.api': 'https://rest-testnet.onflow.org',
+    'app.detail.icon': 'https://placekitten.com/g/200/200',
+    'discovery.wallet': 'https://fcl-discovery.onflow.org/testnet/authn',
+  })
+} else {
+  fcl.config({
+    'flow.network': 'mainnet',
+    'app.detail.title': 'Identity',
+    'accessNode.api': 'https://rest-mainnet.onflow.org',
+    'app.detail.icon': 'https://placekitten.com/g/200/200',
+    'discovery.wallet': 'https://fcl-discovery.onflow.org/authn',
+  })
+}
 
-const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
+const FlowConnector = ({
+  setUser,
+  user,
+  setLoading,
+  setNFTs,
+  nfts,
+  userLookups,
+  setUserLookups,
+}: any) => {
   const [delegations, setDelegations] = useState<Delegations>()
-  const [lookupDelegations, setLookupDelegations] = useState<string[]>()
+  const EVMLookups = useRef<string[] | null>(null)
 
   const fetchDelegations = useCallback(
     async (user: string) => {
@@ -53,17 +71,6 @@ const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
           })
 
           delegations[delegation.chainId.rawValue] = delegation.address
-          // store every lookup Delegation
-          const res = await fetch(
-            `https://api.opensea.io/api/v1/assets?owner=${delegation.address}`
-          )
-          const imagesToBeAdded: string[] = []
-          const data = await res.json()
-          data.assets.forEach((d: any) => {
-            imagesToBeAdded.push(d.image_thumbnail_url)
-          })
-
-          setImages(imagesToBeAdded)
         }
 
         setDelegations(delegations)
@@ -72,7 +79,24 @@ const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
       }
       setLoading(false)
     },
-    [setLoading, setDelegations, setImages]
+    [setLoading, setDelegations]
+  )
+
+  const fetchNFTs = useCallback(
+    async (account: string) => {
+      setLoading(true)
+      try {
+        const nftsToBeAdded = await fetchAccountNFTs(account)
+        setNFTs({
+          ...nfts,
+          [CHAINS_MAP.FLOW]: { ...nfts[CHAINS_MAP.FLOW], ...nftsToBeAdded },
+        })
+      } catch (err) {
+        console.log(err)
+      }
+      setLoading(false)
+    },
+    [setLoading, setNFTs, nfts]
   )
 
   const subscribeConnection = useCallback(() => {
@@ -83,43 +107,88 @@ const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
       ) {
         setUser({ ...user, [CHAINS_MAP.FLOW]: flowAccount.addr })
         fetchDelegations(flowAccount.addr)
+        fetchNFTs(flowAccount.addr)
       }
     })
-  }, [setUser, user, fetchDelegations])
+  }, [setUser, user, fetchDelegations, fetchNFTs])
 
   useEffect(() => {
     subscribeConnection()
   })
 
-  const fetchLookupDelegations = useCallback(async (account: string) => {
-    try {
-      const delegationsByLookup = await fcl.query({
-        cadence: `${geLookupByAddressScript}`,
-        args: (arg: (...args: any) => any) => [
-          arg(account.toLowerCase(), types.String),
-        ],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        limit: 99,
-      })
-      if (delegationsByLookup) {
-        const lookupDelegationsToBeAdded: string[] = []
-        Object.keys(delegationsByLookup).forEach((key: string) =>
-          lookupDelegationsToBeAdded.push(key)
-        )
+  const fetchLookupDelegations = useCallback(
+    async (account: string) => {
+      try {
+        const delegationsByLookup = await fcl.query({
+          cadence: `${geLookupByAddressScript}`,
+          args: (arg: (...args: any) => any) => [
+            arg(account.toLowerCase(), types.String),
+          ],
+          proposer: fcl.currentUser,
+          payer: fcl.currentUser,
+          limit: 99,
+        })
+        if (delegationsByLookup) {
+          let nftsToBeAdded: { [key: string]: NFT } = {}
+          const lookupDelegationsToBeAdded: string[] = []
+          const delegationsByLookupKeys = Object.keys(delegationsByLookup)
 
-        setLookupDelegations(lookupDelegationsToBeAdded)
+          for (let i = 0; i < delegationsByLookupKeys.length; i++) {
+            lookupDelegationsToBeAdded.push(delegationsByLookupKeys[i])
+            // store every lookup Delegation
+            const nfts = await fetchAccountNFTs(delegationsByLookupKeys[i])
+
+            nftsToBeAdded = { ...nftsToBeAdded, ...nfts }
+          }
+
+          EVMLookups.current = lookupDelegationsToBeAdded
+          setUserLookups({
+            ...userLookups,
+            [CHAINS_MAP.EVM]: lookupDelegationsToBeAdded,
+          })
+          setNFTs({
+            ...nfts,
+            [CHAINS_MAP.FLOW]: { ...nfts[CHAINS_MAP.FLOW], ...nftsToBeAdded },
+          })
+        }
+      } catch (err) {
+        console.log(err)
       }
-    } catch (err) {
-      console.log(err)
-    }
-  }, [])
+    },
+    [setNFTs, nfts, userLookups, setUserLookups]
+  )
+
+  const fetchAccountNFTs = async (account: string) => {
+    const res = await fetch(
+      `https://api.matrixmarket.xyz/mart/v1/user/mainnet_flow-${account}/items/owned?pageSize=6`
+    )
+    const data = await res.json()
+    return data && data.list
+      ? data.list.reduce(
+          (nftsToBeAdded: { [key: string]: NFT }, asset: any) => {
+            nftsToBeAdded[asset.id] = {
+              thumbnail: asset.thumbnail,
+              id: asset.id,
+              name: asset.name,
+              link: '',
+            }
+            return nftsToBeAdded
+          },
+          {}
+        )
+      : {}
+  }
 
   useEffect(() => {
-    if (user && user[CHAINS_MAP.EVM]) {
+    if (
+      user &&
+      user[CHAINS_MAP.EVM] &&
+      JSON.stringify(EVMLookups.current) !==
+        JSON.stringify(userLookups[CHAINS_MAP.EVM])
+    ) {
       fetchLookupDelegations(user[CHAINS_MAP.EVM])
     }
-  }, [user, fetchLookupDelegations])
+  }, [user, EVMLookups, userLookups, fetchLookupDelegations])
 
   const onSetDelegation = async (chain: number, address: string) => {
     if (user && user[CHAINS_MAP.FLOW]) {
@@ -188,13 +257,15 @@ const FlowConnector = ({ setUser, user, setLoading, setImages }: any) => {
           )}
         </div>
       )}
-      {lookupDelegations && (
+      {userLookups && userLookups[CHAINS_MAP.FLOW] && (
         <>
           <p>Lookup Delegations</p>
           <div className="delegations">
-            {lookupDelegations.map((address: string, index: number) => (
-              <p key={index}>{address}</p>
-            ))}
+            {userLookups[CHAINS_MAP.FLOW].map(
+              (address: string, index: number) => (
+                <p key={index}>{address}</p>
+              )
+            )}
           </div>
         </>
       )}
