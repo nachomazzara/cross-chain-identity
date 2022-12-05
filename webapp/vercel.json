@@ -1,4 +1,10 @@
 {
   "version": 2,
-  "name": "identity"
+  "name": "identity",
+  "functions": {
+    "api/server.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }

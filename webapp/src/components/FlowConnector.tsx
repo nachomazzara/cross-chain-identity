@@ -167,7 +167,7 @@ const FlowConnector = ({
 
   const fetchAccountNFTs = async (account: string) => {
     const res = await fetch(
-      `https://api.matrixmarket.xyz/mart/v1/user/mainnet_flow-${account}/items/owned`
+      `api/server?url=https://api.matrixmarket.xyz/mart/v1/user/mainnet_flow-${account}/items/owned`
     )
     const data = await res.json()
     return data && data.list
