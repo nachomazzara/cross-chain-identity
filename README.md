@@ -1,46 +1,23 @@
-# Getting Started with Create React App
+# Identity (Crosschain ⛓)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+POC on how a multichain delegation work focused on the soft usage of NFTS
 
-## Available Scripts
+The main motivation is to leverage each blockchain storage by allowing users to log in with an account at any dApp and see all the NFTs owned in different blockchains. It uses soft delegation, meaning you just need to be connected to only one blockchain. E.g., If my FLOW address: _0xNachoFlow_ has 10 NFTs, I can set a delegation to my Ethereum address: _0xNachoEVM_. Therefore, I can join Metaverses like Decentraland, Marketplaces like OpenSea, etc., using _0xNachoEVM_ and see EVM NFTs and the 10 NFTs owned in the FLOW blockchain by _0xNachoFlow_.
 
-In the project directory, you can run:
+To make it work, dApps may know in advance each contract address (fixed address, one per blockchain) and consume delegation lookups. A delegation lookup is called when you find which addresses from other blockchains have been added to the blockchain where you must fetch the NFTs.
 
-### `npm start`
+...WIP 💤...
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Considerations
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- Only working for EVM chains and Flow. For EVM chains, only Ethereum Goerli can be used to set up delegations.
+- Contracts are not battle tested and may have vulnerabilities. DO NOT USE IT for production.
+- TRON, SOLANA, CARDANO, etc., can be easily added. This is just a proof of concept.
 
-### `npm test`
+# Run
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Simple create react-app:
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+npm start
+```
