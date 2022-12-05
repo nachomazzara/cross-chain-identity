@@ -8,7 +8,15 @@ import {
 import { WalletConnectConnector } from '@web3-react/walletconnect-connector'
 
 import SetDelegation from './SetDelegation'
-import { CHAINS, CHAINS_MAP, Delegations, getEVMContract, NFT } from '../utils'
+import {
+  CHAINS,
+  CHAINS_MAP,
+  Delegations,
+  getEVMContract,
+  NFT,
+  getEVMAccountLink,
+  getFlowAccountLink,
+} from '../utils'
 
 const walletConnect = new WalletConnectConnector({
   bridge: 'https://bridge.walletconnect.org',
@@ -29,9 +37,10 @@ const EVMConnector = ({
   setNFTs,
 }: any) => {
   const [delegations, setDelegations] = useState<Delegations>()
-  const flowLookups = useRef<string[] | null>(null)
+  const flowLookups = useRef<{} | null>(null)
+  const refNFTs = useRef<string[] | null>(null)
 
-  const { chainId, account, activate, setError, active, library } =
+  const { chainId, account, activate, setError, active, library, deactivate } =
     useWeb3React<Web3Provider>()
 
   const Identity = useMemo(() => getEVMContract(library), [library])
@@ -39,17 +48,19 @@ const EVMConnector = ({
   const fetchAccountNFTs = async (account: string) => {
     // store every lookup Delegation
     const res = await fetch(
-      `https://api.opensea.io/api/v1/assets?owner=${account}`
+      `https://api.opensea.io/api/v1/assets?owner=${account}&limit=50`
     )
     const data = await res.json()
     return data && data.assets
       ? data.assets.reduce(
           (nftsToBeAdded: { [key: string]: NFT }, asset: any) => {
-            nftsToBeAdded[asset.id] = {
-              thumbnail: asset.image_thumbnail_url,
-              id: asset.id,
-              name: asset.name,
-              link: asset.permalink,
+            if (asset.image_thumbnail_url) {
+              nftsToBeAdded[asset.id] = {
+                thumbnail: asset.image_thumbnail_url,
+                id: asset.id,
+                name: asset.name,
+                link: asset.permalink,
+              }
             }
             return nftsToBeAdded
           },
@@ -86,6 +97,7 @@ const EVMConnector = ({
       setLoading(true)
       try {
         const nftsToBeAdded = await fetchAccountNFTs(account)
+        refNFTs.current = nftsToBeAdded
         setNFTs({
           ...nfts,
           [CHAINS_MAP.EVM]: { ...nfts[CHAINS_MAP.EVM], ...nftsToBeAdded },
@@ -148,6 +160,16 @@ const EVMConnector = ({
 
   useEffect(() => {
     if (
+      active &&
+      account &&
+      JSON.stringify(refNFTs.current) !== JSON.stringify(nfts[CHAINS_MAP.EVM])
+    ) {
+      fetchNFTs(account)
+    }
+  }, [account, active, nfts, fetchNFTs])
+
+  useEffect(() => {
+    if (
       user &&
       user[CHAINS_MAP.FLOW] &&
       JSON.stringify(flowLookups.current) !==
@@ -187,6 +209,11 @@ const EVMConnector = ({
     )
   }
 
+  const onLogout = () => {
+    setUser({ ...user, [CHAINS_MAP.EVM]: null })
+    deactivate()
+  }
+
   const onSetDelegation = async (chain: number, address: string) => {
     if (user && user[CHAINS_MAP.EVM]) {
       setLoading(true)
@@ -203,7 +230,7 @@ const EVMConnector = ({
         alert('Delegation set successfully!')
       } catch (error) {
         console.log(error)
-        alert('Error minting NFT, please check the console for error details!')
+        alert('Error setting delegation')
       }
       setLoading(false)
     }
@@ -211,7 +238,9 @@ const EVMConnector = ({
 
   return (
     <div className="connector">
-      <p className="title">EVM</p>
+      <p className="title">{`EVM ${
+        active && user && user[CHAINS_MAP.EVM] ? '⚡️' : ''
+      }`}</p>
       {active && user && user[CHAINS_MAP.EVM] ? (
         chainId !== 5 ? (
           <>
@@ -222,45 +251,92 @@ const EVMConnector = ({
             </p>
           </>
         ) : (
-          <>
-            <p>Account: {user[CHAINS_MAP.EVM]}</p>
-            <p>ChainID: {chainId} connected</p>
-            <SetDelegation onSetDelegation={onSetDelegation} />
-          </>
+          <div className="account">
+            <p>
+              Account:{' '}
+              <a
+                href={getEVMAccountLink() + user[CHAINS_MAP.EVM]}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {user[CHAINS_MAP.EVM]}
+              </a>
+            </p>
+            <p className="logout" onClick={onLogout}>
+              ❌
+            </p>
+          </div>
         )
       ) : (
         <>
-          <button type="button" onClick={onConnectWitInjected}>
-            Connect with Metamask
+          <button className="button" onClick={onConnectWitInjected}>
+            Connect with Metamask 🦊
           </button>
-          <button onClick={onConnectWithWalletConnect}>
-            Connect with WalletConnect
+          <button className="button" onClick={onConnectWithWalletConnect}>
+            Connect with WalletConnect 🚾
           </button>
         </>
       )}
       {delegations && (
-        <>
-          <p>Delegations</p>
+        <div className="delegations-wrapper">
+          <p className="title">Delegations</p>
+          <p className="subtitle">
+            Accounts that you have delegated the use of your NFTs
+          </p>
           <div className="delegations">
-            {Object.keys(delegations).map((chainId: string, index: number) => (
-              <p key={index}>
-                {CHAINS[Number(chainId)]}: {delegations[Number(chainId)]}
-              </p>
-            ))}
-          </div>
-        </>
-      )}
-      {userLookups && userLookups[CHAINS_MAP.EVM] && (
-        <>
-          <p>Lookup Delegations</p>
-          <div className="delegations">
-            {userLookups[CHAINS_MAP.EVM].map(
-              (address: string, index: number) => (
-                <p key={index}>{address}</p>
-              )
+            {Object.keys(delegations).length > 0 ? (
+              Object.keys(delegations).map((chainId: string, index: number) => (
+                <p key={index}>
+                  🧵 <strong>{CHAINS[Number(chainId)]}:</strong>{' '}
+                  <a
+                    href={`${
+                      Number(chainId) === CHAINS_MAP.FLOW
+                        ? getFlowAccountLink()
+                        : getEVMAccountLink()
+                    }${delegations[Number(chainId)]}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {delegations[Number(chainId)]}
+                  </a>{' '}
+                </p>
+              ))
+            ) : (
+              <p className="empty">No delegations set yet 🙃...</p>
             )}
           </div>
-        </>
+        </div>
+      )}
+      {userLookups && userLookups[CHAINS_MAP.EVM] && (
+        <div className="lookups-wrapper">
+          <p className="title">Lookup Delegations</p>
+          <p className="subtitle">
+            Accounts that have delegated the use of their NFTs
+          </p>
+          <div className="delegations">
+            {userLookups[CHAINS_MAP.EVM].length > 0 ? (
+              userLookups[CHAINS_MAP.EVM].map(
+                (address: string, index: number) => (
+                  <p key={index}>
+                    🪢 <strong>{CHAINS[CHAINS_MAP.FLOW]}:</strong>{' '}
+                    <a
+                      href={getFlowAccountLink() + address}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {address}
+                    </a>
+                  </p>
+                )
+              )
+            ) : (
+              <p className="empty">No lookups found 😢...</p>
+            )}
+          </div>
+        </div>
+      )}
+      {active && user && user[CHAINS_MAP.EVM] && chainId === 5 && (
+        <SetDelegation onSetDelegation={onSetDelegation} />
       )}
     </div>
   )

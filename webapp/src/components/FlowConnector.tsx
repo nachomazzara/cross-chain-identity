@@ -6,7 +6,14 @@ import * as fcl from '@onflow/fcl'
 import * as types from '@onflow/types'
 
 import SetDelegation from './SetDelegation'
-import { CHAINS, CHAINS_MAP, Delegations, NFT } from '../utils'
+import {
+  CHAINS,
+  CHAINS_MAP,
+  Delegations,
+  NFT,
+  getEVMAccountLink,
+  getFlowAccountLink,
+} from '../utils'
 
 import { setDelegation as setDelegationScript } from '../cadence/transactions/setDelegation'
 import {
@@ -160,7 +167,7 @@ const FlowConnector = ({
 
   const fetchAccountNFTs = async (account: string) => {
     const res = await fetch(
-      `https://api.matrixmarket.xyz/mart/v1/user/mainnet_flow-${account}/items/owned?pageSize=6`
+      `https://api.matrixmarket.xyz/mart/v1/user/mainnet_flow-${account}/items/owned`
     )
     const data = await res.json()
     return data && data.list
@@ -207,67 +214,109 @@ const FlowConnector = ({
         console.log('Setting delegation', transactionId)
         const transaction = await fcl.tx(transactionId).onceSealed()
         console.log(
-          'Testnet explorer link:',
-          `https://testnet.flowscan.org/transaction/${transactionId}`
+          `${
+            window.location.pathname === '/testnet' ? 'Testnet' : ''
+          } explorer link:`,
+          `https://${
+            window.location.pathname === '/testnet' ? 'testnet.' : ''
+          }flowscan.org/transaction/${transactionId}`
         )
         console.log(transaction)
         fetchDelegations(user[CHAINS_MAP.FLOW])
         alert('Delegation set successfully!')
       } catch (error) {
         console.log(error)
-        alert('Error minting NFT, please check the console for error details!')
+        alert('Error setting delegation')
       }
       setLoading(false)
     }
   }
 
+  const onLogout = () => {
+    setUser({ ...user, [CHAINS_MAP.FLOW]: null })
+    fcl.unauthenticate()
+  }
+
   return (
     <div className="connector">
-      <p className="title">FLOW</p>
+      <p className="title">{`FLOW ${
+        user && user[CHAINS_MAP.FLOW] ? '⚡️' : ''
+      }`}</p>
       {!user ||
         (!user[CHAINS_MAP.FLOW] && (
-          <button className="cta-button button-glow" onClick={fcl.authenticate}>
-            Connect
+          <button className="button" onClick={fcl.authenticate}>
+            Connect ♻️
           </button>
         ))}
       {user && user[CHAINS_MAP.FLOW] && (
         <div>
-          <div className="logout-container">
-            <button
-              className="cta-button logout-btn"
-              onClick={fcl.unauthenticate}
-            >
-              ❎ {'  '}
-              {user[CHAINS_MAP.FLOW]}
-            </button>
+          <div className="account">
+            <p>
+              Account:{' '}
+              <a
+                href={getFlowAccountLink() + user[CHAINS_MAP.FLOW]}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {user[CHAINS_MAP.FLOW]}
+              </a>
+            </p>
+            <p className="logout" onClick={onLogout}>
+              ❌
+            </p>
           </div>
-          {user && user[CHAINS_MAP.FLOW] && (
-            <SetDelegation onSetDelegation={onSetDelegation} />
-          )}
           {delegations && (
-            <div className="delegations">
-              {Object.keys(delegations).map(
-                (chainId: string, index: number) => (
-                  <p key={index}>
-                    {CHAINS[Number(chainId)]}: {delegations[Number(chainId)]}
-                  </p>
+            <div className="delegations-wrapper">
+              <p className="title">Delegations</p>
+              <p className="subtitle">
+                Accounts that you have delegated the use of your NFTs
+              </p>
+              {Object.keys(delegations).length > 0 ? (
+                Object.keys(delegations).map(
+                  (chainId: string, index: number) => (
+                    <p key={index}>
+                      🧵 <strong>{CHAINS[Number(chainId)]}:</strong>{' '}
+                      {delegations[Number(chainId)]}
+                    </p>
+                  )
                 )
+              ) : (
+                <p className="empty">No delegations set yet 🙃...</p>
               )}
             </div>
           )}
         </div>
       )}
       {userLookups && userLookups[CHAINS_MAP.FLOW] && (
-        <>
-          <p>Lookup Delegations</p>
+        <div className="lookups-wrapper">
+          <p className="title">Lookup Delegations</p>
+          <p className="subtitle">
+            Accounts that have delegated the use of their NFTs
+          </p>
           <div className="delegations">
-            {userLookups[CHAINS_MAP.FLOW].map(
-              (address: string, index: number) => (
-                <p key={index}>{address}</p>
+            {userLookups[CHAINS_MAP.FLOW].length > 0 ? (
+              userLookups[CHAINS_MAP.FLOW].map(
+                (address: string, index: number) => (
+                  <p key={index}>
+                    🪢 <strong>{CHAINS[CHAINS_MAP.EVM]}:</strong>{' '}
+                    <a
+                      href={getEVMAccountLink() + address}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {address}
+                    </a>
+                  </p>
+                )
               )
+            ) : (
+              <p className="empty">No lookups found 😢...</p>
             )}
           </div>
-        </>
+        </div>
+      )}
+      {user && user[CHAINS_MAP.FLOW] && (
+        <SetDelegation onSetDelegation={onSetDelegation} />
       )}
     </div>
   )

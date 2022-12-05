@@ -20,23 +20,27 @@ const SetDelegation = ({ onSetDelegation }: any) => {
   const handleInputChange = (event: any) => setAddress(event.target.value)
 
   return (
-    <div>
+    <div className="set-delegation">
       <form>
-        <label>
-          Set Delegation
-          <select value={chain} onChange={handleChainChange}>
-            {Object.keys(CHAINS).map((key) => (
-              <option key={key} value={key}>
-                {CHAINS[Number(key)]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <input type="text" onChange={handleInputChange} value={address} />
+        <label>Set Delegation</label>
+        <select value={chain} onChange={handleChainChange}>
+          {Object.keys(CHAINS).map((key) => (
+            <option key={key} value={key}>
+              {CHAINS[Number(key)]}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          onChange={handleInputChange}
+          value={address}
+          placeholder="0x123..."
+        />
         <input
           type="submit"
-          value="Add Delegation"
-          className="cta-button button-glow"
+          value="Submit ✅"
+          className="button"
           onClick={onSubmit}
         />
       </form>

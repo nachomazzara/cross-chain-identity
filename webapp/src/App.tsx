@@ -52,15 +52,15 @@ function App() {
           ))}
         </div>
         <div className="nfts">
-          <h2>NFTs</h2>
+          <h1>NFTs 🎁</h1>
           <>
             {Object.keys(nfts).map((key) => {
               const chainNFTs = nfts[Number(key) as CHAINS_MAP]
               return (
                 <div key={key}>
-                  <h3>{CHAINS[Number(key)]}</h3>
+                  <h2>⛓ {CHAINS[Number(key)]}</h2>
                   <div className="nfts-wrapper">
-                    {chainNFTs &&
+                    {chainNFTs && Object.keys(chainNFTs).length > 0 ? (
                       Object.keys(chainNFTs).map((id) => (
                         <div className="nft-wrapper" key={id}>
                           <img
@@ -68,7 +68,10 @@ function App() {
                             src={chainNFTs[id].thumbnail}
                           />
                         </div>
-                      ))}
+                      ))
+                    ) : (
+                      <p className="empty">No NFTs 😭...</p>
+                    )}
                   </div>
                 </div>
               )

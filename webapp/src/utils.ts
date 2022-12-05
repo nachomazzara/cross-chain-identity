@@ -52,3 +52,11 @@ export function getEVMContract(library?: Web3Provider) {
     )
   )
 }
+
+export function getFlowAccountLink() {
+  return 'https://flowscan.org/account/'
+}
+
+export function getEVMAccountLink() {
+  return 'https://etherscan.io/address/'
+}
