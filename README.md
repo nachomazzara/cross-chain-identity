@@ -8,16 +8,23 @@ To make it work, dApps may know in advance each contract address (fixed address,
 
 ...WIP 💤...
 
+Try it: https://identity-nachomazzara.vercel.app/
+
 ## Considerations
 
 - Only working for EVM chains and Flow. For EVM chains, only Ethereum Goerli can be used to set up delegations.
 - Contracts are not battle tested and may have vulnerabilities. DO NOT USE IT for production.
 - TRON, SOLANA, CARDANO, etc., can be easily added. This is just a proof of concept.
 
-# Run
+# Instal & Run
 
-Simple create react-app:
+Simple create react-app + lambda with vercel:
 
 ```bash
-npm start
+# Instal
+npm ci
+npm i -g vercel
+
+# Run
+vercel dev
 ```
