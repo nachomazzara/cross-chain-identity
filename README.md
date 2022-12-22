@@ -6,9 +6,49 @@ The main motivation is to leverage each blockchain storage by allowing users to 
 
 To make it work, dApps may know in advance each contract address (fixed address, one per blockchain) and consume delegation lookups. A delegation lookup is called when you find which addresses from other blockchains have been added to the blockchain where you must fetch the NFTs.
 
-...WIP 💤...
+After the delegation is set, you only need to be connected to one chain to see all the NFTS delegated to you.
 
 Try it: https://identity-nachomazzara.vercel.app/
+
+## Use Cases
+
+### Before you read
+- blockchain_0, blockchain_1, blockchain_2, and blockchain_n are blockchain with different account protocol.
+- user1.b_0, user1.b_1, user1.b_2, and user1.b_n are valid blockchain 0, 1, 2, and n accounts.
+- Identity_EVM_SC, Identity_Flow_SC, Identity_Blockchain_1_SC, Identity_Blockchain_2_SC, and Identity_Blockchain_n_SC are the Identity smart contract deployed on each blockchain.
+- user1.eth is a valid Ethereum account.
+- user1.flow is a valid Flow account.
+
+### Delegate to other accounts
+
+Delegate the usage of your Blockchain_0 NFTs to other Blockchain accounts
+
+![General delegate](/images/general_delegate.png "General delegate")
+
+### Fetch delegated NFTs
+
+Fetch delegate NFTs.
+
+![Fetch delegate NFTs](/images/general_fetch_nfts.png "Fetch delegate NFTs")
+
+#### Using specific examples with real blockchains
+
+- Delegate the usage of your EVM NFTs to user1.flow
+
+![Delegate the usage of your EVM NFTs to user1.flow](/images/evm_delegate.png "Delegate the usage of your EVM NFTs to user1.flow")
+
+- Fetch NFTs from user1.flow and EVM accounts by only being connected to Flow.
+
+![Fetch NFTs from user1.flow and EVM accounts by only being connected to Flow](/images/flow_fetch_nfts.png "Fetch NFTs from user1.flow and EVM accounts by only being connected to Flow")
+
+- Delegate the usage of your Flow NFTs to user1.eth
+
+![Delegate the usage of your Flow NFTs to user1.eth](/images/flow_delegate.png "Delegate the usage of your Flow NFTs to user1.eth")
+
+- Fetch NFTs from user1.eth and Flow accounts by only being connected to EVM.
+
+![Fetch NFTs from user1.eth and Flow accounts by only being connected to EVM](/images/evm_fetch_nfts.png "Fetch NFTs from user1.eth and Flow accounts by only being connected to EVM")
+
 
 ## Considerations
 
