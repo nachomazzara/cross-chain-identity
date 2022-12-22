@@ -13,11 +13,11 @@ Try it: https://identity-nachomazzara.vercel.app/
 ## Use Cases
 
 ### Before you read
-- blockchain_0, blockchain_1, blockchain_2, and blockchain_n are blockchain with different account protocol.
-- user1.b_0, user1.b_1, user1.b_2, and user1.b_n are valid blockchain 0, 1, 2, and n accounts.
-- Identity_EVM_SC, Identity_Flow_SC, Identity_Blockchain_1_SC, Identity_Blockchain_2_SC, and Identity_Blockchain_n_SC are the Identity smart contract deployed on each blockchain.
-- user1.eth is a valid Ethereum account.
-- user1.flow is a valid Flow account.
+- `blockchain_0`, `blockchain_1`, `blockchain_2`, and `blockchain_n` are blockchain with different account protocol.
+- `user1.b_0`, `user1.b_1`, `user1.b_2`, and `user1.b_n` are valid blockchain 0, 1, 2, and n accounts.
+- `Identity_EVM_SC`, `Identity_Flow_SC`, `Identity_Blockchain_1_SC`, `Identity_Blockchain_2_SC`, and `Identity_Blockchain_n_SC` are the Identity smart contract deployed on each blockchain.
+- `user1.eth` is a valid Ethereum account.
+- `user1.flow` is a valid Flow account.
 
 ### Delegate to other accounts
 
