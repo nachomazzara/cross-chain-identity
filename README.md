@@ -4,6 +4,18 @@ POC on how a multichain delegation work focused on the soft usage of NFTS
 
 The primary motivation is to leverage each blockchain storage by allowing users to log in with an account at any dApp and see all the NFTs owned in different blockchains. It uses soft delegation, meaning you need to be connected to only one blockchain. E.g., If my FLOW address: _0xNachoFlow_ has 10 NFTs, I can set a delegation to my Ethereum address: _0xNachoEVM_. Therefore, I can join Metaverses like Decentraland, Marketplaces like OpenSea, etc., using _0xNachoEVM_ and see EVM NFTs and the 10 NFTs owned in the FLOW blockchain by _0xNachoFlow_.
 
+The POC is using @ethereum and @flow, but it can be any. The (ugly) UI to play is identity-nachomazzara.vercel.app. Transactions in Flow using @blocto are free, and for Ethereum, you need to be connected to Goerli, but the NFTs will be fetched from OpenSea API, so it will retrieve NFTs from every EVM blockchain supported there. To fully use it, you may need to have NFTs in Flow and Ethereum. After delegating to the desired address, you can then connect with that delegated address and see all the NFTs displayed together. For example, if you want to connect with Ethereum and see your NFTs from it and Flow, you will need to do first:
+  1) Connect with Flow.
+  2) Set a delegation to your EVM address (transaction needed).
+  3) The next time you connect to Ethereum, you will see the NFTs from Ethereum and Flow.
+ 
+ For example, if you want to connect with Flow and see your NFTs from it and Ethereum, you will need to do first:
+  1) Connect with Ethereum.
+  2) Set a delegation to your FLow address (transaction needed).
+  3) The next time you connect to Flow, you will see the NFTs from Flow and Ethereum.
+
+
+
 To make it work, dApps may know in advance each contract address (fixed address, one per blockchain) and consume delegation lookups. A delegation lookup is called when you find which addresses from other blockchains have been added to the blockchain where you must fetch the NFTs.
 
 After the delegation is set, you only need to be connected to one chain to see all the NFTS delegated to you.
